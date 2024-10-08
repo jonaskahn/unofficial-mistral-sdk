@@ -19,12 +19,10 @@ import kong.unirest.core.Unirest;
 import kong.unirest.core.UnirestException;
 import kong.unirest.core.UnirestInstance;
 import kong.unirest.modules.jackson.JacksonObjectMapper;
-import lombok.AccessLevel;
 import lombok.Builder;
-import lombok.Data;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.ToString;
+import lombok.experimental.Accessors;
 import one.ifelse.tools.mistral.exception.MistralException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,13 +66,7 @@ public final class HttpClient implements AutoCloseable {
     });
     this.instance.config().defaultBaseUrl("https://api.mistral.ai/v1").retryAfter(true, 3);
     if (proxy != null) {
-      this.instance.config()
-          .proxy(
-              proxy.getHost(),
-              proxy.getPort(),
-              proxy.getUsername(),
-              proxy.getPassword()
-          );
+      this.instance.config().proxy(proxy.host, proxy.port, proxy.username, proxy.password);
     }
     if (baseUrl != null) {
       this.instance.config().defaultBaseUrl(baseUrl);
@@ -189,7 +181,9 @@ public final class HttpClient implements AutoCloseable {
     instance.close();
   }
 
-  @Data
+  @Accessors(fluent = true)
+  @Getter
+  @ToString
   public static class Proxy {
 
     private final String host;
@@ -205,20 +199,6 @@ public final class HttpClient implements AutoCloseable {
       this.username = username;
       this.password = password;
     }
-  }
-
-  @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-  @Builder(builderMethodName = "with", buildMethodName = "instance")
-  @Data
-  public static class Settings {
-
-    private final String baseUrl;
-    @ToString.Exclude
-    private final String secret;
-    private final Integer connectTimeout;
-    private final Long waitBeforeRetryTime;
-    private final Integer maxRetries;
-    private final Proxy proxy;
   }
 }
 
