@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import kong.unirest.core.Config;
 import kong.unirest.core.GenericType;
 import kong.unirest.core.HttpRequest;
@@ -126,10 +125,11 @@ public final class HttpClient implements AutoCloseable {
 
 
   /**
-   * Make a GET request to the given path, relative to the configured base URL.
+   * Performs a GET request with the given path.
    *
-   * @param path the path to request
-   * @return the response body, deserialized to a type of T
+   * @param path the path to query
+   * @param type the type of the response
+   * @return an optional with the response body, or empty if the response was a 404
    */
   public <T> Optional<T> get(String path, GenericType<T> type) {
     String refinedPath = path.startsWith("/") ? path : "/" + path;
@@ -141,96 +141,47 @@ public final class HttpClient implements AutoCloseable {
     );
   }
 
+
   /**
-   * Make a GET request to the given path, relative to the configured base URL, with query
-   * parameters.
+   * Performs a GET request and returns the response body as an object of type {@code T}.
    *
-   * @param path   the path to request
-   * @param params query parameters to include in the request
-   * @return the response body, deserialized to a type of T
+   * @param path   the path to send the request to
+   * @param params the route parameters to pass to the request
+   * @param type   the type to read the response body as
+   * @return the response body as an object of type {@code T}, if the request was successful; an
+   * empty optional if the request failed
    */
   public <T> Optional<T> get(String path, Map<String, Object> params, GenericType<T> type) {
+    String refinedPath = path.startsWith("/") ? path : "/" + path;
     if (Objects.isNull(params) || params.isEmpty()) {
-      return this.get(path, type);
+      return this.get(refinedPath, type);
     }
     return Optional.ofNullable(
         this.getInstance()
-            .get("/" + path)
+            .get(refinedPath)
             .routeParam(params)
             .asObject(type)
             .getBody()
     );
   }
 
-  /**
-   * Make a GET request to the given path, relative to the configured base URL, asynchronously.
-   *
-   * @param path the path to request
-   * @return a future that completes with the response body, deserialized to a type of T
-   */
-  public <T> CompletableFuture<Optional<T>> asyncGet(String path, GenericType<T> type) {
-    return this.getInstance()
-        .get("/" + path)
-        .asObjectAsync(type)
-        .thenApply(HttpResponse::getBody)
-        .thenApply(Optional::ofNullable);
-  }
-
 
   /**
-   * Make a GET request to the given path, relative to the configured base URL, with query
-   * parameters, asynchronously.
+   * Sends a POST request with the given body to the given path.
    *
-   * @param path   the path to request
-   * @param params query parameters to include in the request
-   * @return a future that completes with the response body, deserialized to a type of T
-   */
-  public <T> CompletableFuture<Optional<T>> asyncGet(String path, Map<String, Object> params,
-      GenericType<T> type) {
-    if (Objects.isNull(params) || params.isEmpty()) {
-      return this.asyncGet(path, type);
-    }
-    return this.getInstance()
-        .get(path)
-        .routeParam(params)
-        .asObjectAsync(type)
-        .thenApply(HttpResponse::getBody)
-        .thenApply(Optional::ofNullable);
-  }
-
-
-  /**
-   * Make a POST request to the given path, relative to the configured base URL, with the given
-   * body.
-   *
-   * @param path the path to request
-   * @param body the body to send with the request
-   * @return the response body, deserialized to a type of R
+   * @param path the path to send the request to
+   * @param body the body to send in the request
+   * @return the response body as an object of type {@code R}
    */
   public <T, R> R post(String path, T body) {
+    final var type = new GenericType<R>() {
+    };
+    String refinedPath = path.startsWith("/") ? path : "/" + path;
     return this.getInstance()
-        .post(path)
+        .post(refinedPath)
         .body(body)
-        .asObject(new GenericType<R>() {
-        })
+        .asObject(type)
         .getBody();
-  }
-
-  /**
-   * Make a POST request to the given path, relative to the configured base URL, with the given
-   * body, asynchronously.
-   *
-   * @param path the path to request
-   * @param body the body to send with the request
-   * @return a future that completes with the response body, deserialized to a type of R
-   */
-  public <T, R> CompletableFuture<R> asyncPost(String path, T body) {
-    return this.getInstance()
-        .post(path)
-        .body(body)
-        .asObjectAsync(new GenericType<R>() {
-        })
-        .thenApply(HttpResponse::getBody);
   }
 
   @Override

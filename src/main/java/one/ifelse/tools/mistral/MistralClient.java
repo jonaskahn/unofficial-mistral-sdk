@@ -16,21 +16,21 @@ public final class MistralClient implements AutoCloseable {
   private final ChatApi chat;
 
   @Builder(builderMethodName = "with", buildMethodName = "instance")
-  public MistralClient(HttpClient.Settings config) {
+  public MistralClient(HttpClient.Settings settings) {
     this.client = HttpClient.with()
-        .baseUrl(config.getBaseUrl())
-        .connectTimeout(config.getConnectTimeout())
-        .waitTime(config.getWaitBeforeRetryTime())
-        .maxRetries(config.getMaxRetries())
-        .secret(config.getSecret())
+        .baseUrl(settings.getBaseUrl())
+        .connectTimeout(settings.getConnectTimeout())
+        .waitTime(settings.getWaitBeforeRetryTime())
+        .maxRetries(settings.getMaxRetries())
+        .secret(settings.getSecret())
         .instance();
     this.models = new ModelApi(this.client);
     this.chat = new ChatApi(this.client);
   }
 
 
-  public static MistralClient getClient(HttpClient.Settings config) {
-    return MistralClient.with().config(config).instance();
+  public static MistralClient getClient(HttpClient.Settings settings) {
+    return MistralClient.with().settings(settings).instance();
   }
 
   public static MistralClient getClient(String secret) {
