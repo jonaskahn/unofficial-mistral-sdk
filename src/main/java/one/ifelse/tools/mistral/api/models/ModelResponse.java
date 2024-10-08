@@ -1,4 +1,4 @@
-package one.ifelse.tools.mistral.command.models;
+package one.ifelse.tools.mistral.api.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-class Response {
+class ModelResponse {
 
   @JsonProperty("object")
   private String object;

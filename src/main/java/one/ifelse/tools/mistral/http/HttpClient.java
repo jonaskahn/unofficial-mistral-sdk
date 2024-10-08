@@ -83,7 +83,7 @@ public final class HttpClient implements AutoCloseable {
 
     this.instance.config().followRedirects(true);
     if (Objects.isNull(secret) || secret.trim().isEmpty()) {
-      throw new MistralException("Secret API Key must be provided");
+      throw new MistralException(400, "Secret API Key must be provided");
     }
     this.instance.config().addDefaultHeader("User-Agent", "MistralClient-Java-0.1.0");
     this.instance.config().addDefaultHeader("Authorization", "Bearer " + secret);
@@ -95,26 +95,22 @@ public final class HttpClient implements AutoCloseable {
 
       @Override
       public void onResponse(HttpResponse<?> response, HttpRequestSummary request, Config config) {
-        log.debug("Request:\n{}", response.getRequestSummary().asString());
-        log.debug("Response:\n  - Status: {}\n  - Body: {}",
-            response.getStatus(),
-            response.getBody()
-        );
-        int status = response.getStatus();
-        if (status < 400) {
-          Interceptor.super.onResponse(response, request, config);
-        } else if (status == 401) {
-          throw new MistralException("Unauthorized");
-        } else {
-          throw new MistralException("Request failed with status " + status);
-        }
+        response.ifFailure(String.class, e -> {
+          log.debug(
+              "\n===================================\nRequest:\n{}\nResponse: \n{}",
+              e.getRequestSummary().asString(), e.getBody());
+          throw new MistralException(e.getStatus(), e.getBody());
+        });
+        Interceptor.super.onResponse(response, request, config);
       }
 
       @Override
       public HttpResponse<?> onFail(Exception e, HttpRequestSummary request, Config config)
           throws UnirestException {
-        log.warn(e.getLocalizedMessage());
-        return Interceptor.super.onFail(e, request, config);
+        if (e instanceof MistralException) {
+          throw (MistralException) e;
+        }
+        throw new MistralException(400, e);
       }
     });
     this.instance.config().setObjectMapper(new JacksonObjectMapper(
@@ -197,8 +193,7 @@ public final class HttpClient implements AutoCloseable {
     return this.getInstance()
         .get(path)
         .routeParam(params)
-        .asObjectAsync(new GenericType<T>() {
-        })
+        .asObjectAsync(type)
         .thenApply(HttpResponse::getBody)
         .thenApply(Optional::ofNullable);
   }

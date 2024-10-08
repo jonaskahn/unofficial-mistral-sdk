@@ -1,4 +1,4 @@
-package one.ifelse.tools.mistral.command.models;
+package one.ifelse.tools.mistral.api.models;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
