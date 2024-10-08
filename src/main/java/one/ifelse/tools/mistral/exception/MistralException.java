@@ -1,4 +1,4 @@
-package one.ifelse.tools.exception;
+package one.ifelse.tools.mistral.exception;
 
 public class MistralException extends RuntimeException {
 

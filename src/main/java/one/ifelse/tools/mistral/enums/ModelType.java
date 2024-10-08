@@ -1,4 +1,4 @@
-package one.ifelse.tools.enums;
+package one.ifelse.tools.mistral.enums;
 
 public enum ModelType {
   PREMIER,

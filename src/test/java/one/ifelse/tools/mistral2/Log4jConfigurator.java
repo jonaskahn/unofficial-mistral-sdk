@@ -1,4 +1,4 @@
-package one.ifelse.tools;
+package one.ifelse.tools.mistral2;
 
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;

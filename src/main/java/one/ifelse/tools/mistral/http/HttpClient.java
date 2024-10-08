@@ -1,6 +1,10 @@
-package one.ifelse.tools.http;
+package one.ifelse.tools.mistral.http;
 
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -15,10 +19,14 @@ import kong.unirest.core.RetryStrategy;
 import kong.unirest.core.Unirest;
 import kong.unirest.core.UnirestException;
 import kong.unirest.core.UnirestInstance;
+import kong.unirest.modules.jackson.JacksonObjectMapper;
+import lombok.AccessLevel;
 import lombok.Builder;
+import lombok.Data;
 import lombok.Getter;
-import one.ifelse.tools.dto.ProxySettings;
-import one.ifelse.tools.exception.MistralException;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
+import one.ifelse.tools.mistral.exception.MistralException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +43,7 @@ public final class HttpClient implements AutoCloseable {
 
   @Builder(builderMethodName = "with", buildMethodName = "instance")
   private HttpClient(
-      ProxySettings proxySettings,
+      Proxy proxy,
       String baseUrl,
       String secret,
       Integer connectTimeout,
@@ -60,13 +68,13 @@ public final class HttpClient implements AutoCloseable {
       }
     });
     this.instance.config().defaultBaseUrl("https://api.mistral.ai/v1").retryAfter(true, 3);
-    if (proxySettings != null) {
+    if (proxy != null) {
       this.instance.config()
           .proxy(
-              proxySettings.getHost(),
-              proxySettings.getPort(),
-              proxySettings.getUsername(),
-              proxySettings.getPassword()
+              proxy.getHost(),
+              proxy.getPort(),
+              proxy.getUsername(),
+              proxy.getPassword()
           );
     }
     if (baseUrl != null) {
@@ -93,7 +101,7 @@ public final class HttpClient implements AutoCloseable {
             response.getBody()
         );
         int status = response.getStatus();
-        if (status <= 400) {
+        if (status < 400) {
           Interceptor.super.onResponse(response, request, config);
         } else if (status == 401) {
           throw new MistralException("Unauthorized");
@@ -109,6 +117,15 @@ public final class HttpClient implements AutoCloseable {
         return Interceptor.super.onFail(e, request, config);
       }
     });
+    this.instance.config().setObjectMapper(new JacksonObjectMapper(
+        JsonMapper.builder()
+            .findAndAddModules()
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .enable(SerializationFeature.WRITE_DATES_WITH_CONTEXT_TIME_ZONE)
+            .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES)
+            .build())
+    );
   }
 
 
@@ -143,7 +160,7 @@ public final class HttpClient implements AutoCloseable {
     return Optional.ofNullable(
         this.getInstance()
             .get("/" + path)
-            .queryString(params)
+            .routeParam(params)
             .asObject(type)
             .getBody()
     );
@@ -155,12 +172,12 @@ public final class HttpClient implements AutoCloseable {
    * @param path the path to request
    * @return a future that completes with the response body, deserialized to a type of T
    */
-  public <T> CompletableFuture<T> asyncGet(String path) {
+  public <T> CompletableFuture<Optional<T>> asyncGet(String path, GenericType<T> type) {
     return this.getInstance()
         .get("/" + path)
-        .asObjectAsync(new GenericType<T>() {
-        })
-        .thenApply(HttpResponse::getBody);
+        .asObjectAsync(type)
+        .thenApply(HttpResponse::getBody)
+        .thenApply(Optional::ofNullable);
   }
 
 
@@ -172,16 +189,18 @@ public final class HttpClient implements AutoCloseable {
    * @param params query parameters to include in the request
    * @return a future that completes with the response body, deserialized to a type of T
    */
-  public <T> CompletableFuture<T> asyncGet(String path, Map<String, Object> params) {
+  public <T> CompletableFuture<Optional<T>> asyncGet(String path, Map<String, Object> params,
+      GenericType<T> type) {
     if (Objects.isNull(params) || params.isEmpty()) {
-      return this.asyncGet(path);
+      return this.asyncGet(path, type);
     }
     return this.getInstance()
         .get(path)
-        .queryString(params)
+        .routeParam(params)
         .asObjectAsync(new GenericType<T>() {
         })
-        .thenApply(HttpResponse::getBody);
+        .thenApply(HttpResponse::getBody)
+        .thenApply(Optional::ofNullable);
   }
 
 
@@ -222,6 +241,38 @@ public final class HttpClient implements AutoCloseable {
   @Override
   public void close() {
     instance.close();
+  }
+
+  @Data
+  public static class Proxy {
+
+    private final String host;
+    private final Integer port;
+    @ToString.Exclude
+    private final String username;
+    private final String password;
+
+    @Builder(builderMethodName = "config", buildMethodName = "instance")
+    public Proxy(String host, Integer port, String username, String password) {
+      this.host = host;
+      this.port = port;
+      this.username = username;
+      this.password = password;
+    }
+  }
+
+  @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+  @Builder(builderMethodName = "with", buildMethodName = "instance")
+  @Data
+  public static class Settings {
+
+    private final String baseUrl;
+    @ToString.Exclude
+    private final String secret;
+    private final Integer connectTimeout;
+    private final Long waitBeforeRetryTime;
+    private final Integer maxRetries;
+    private final Proxy proxy;
   }
 }
 

@@ -1,4 +1,4 @@
-package one.ifelse.tools.enums;
+package one.ifelse.tools.mistral.enums;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
